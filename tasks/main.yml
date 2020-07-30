@@ -1,0 +1,23 @@
+- name: Check if kubectl version is installed
+  command: kubectl version --client=true -o json
+  changed_when: false
+  failed_when: false
+  register: kubectl_check
+
+- set_fact:
+    kubectl_check_version: "{{ (kubectl_check.stdout | from_json).clientVersion.gitVersion | regex_search(kubectl_version) }}"
+  when: (kubectl_check.rc == 0)
+
+- name: "Download kubectl ({{ kubectl_version }})"
+  get_url:
+    url: "{{ kubectl_url }}"
+    dest: "{{ kubectl_install_dir }}"
+    timeout: 20
+    validate_certs: no
+    mode: 755
+  become: yes
+  when: (kubectl_check_version is not defined) or (kubectl_check_version == '')
+
+- name: Add autocompletion
+  shell: kubectl completion bash >> /etc/bash_completion.d/kubectl
+  become: yes
